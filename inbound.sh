@@ -13,10 +13,10 @@ echo "   | || |_| | | |  | | "
 echo "   |_| \___/  |_|  |_| "
 echo "                       "
 echo -e "\e[0m"
-echo "   1011 Inbound Setup (Advanced Protocols)"
+echo "   1011 Inbound Setup (Stable Protocols)"
 echo "------------------------------------------------------------"
 echo -e "\e[1;33m  Installing Protocols:\e[0m"
-echo "  🔹 VLESS (Reality, WS TLS, TCP, gRPC, H2, QUIC)"
+echo "  🔹 VLESS (Reality, WS TLS, TCP, gRPC)"
 echo "  🔹 VMess (WS TLS & TCP)"
 echo "  🔹 Trojan (TLS & TCP)"
 echo "  🔹 Shadowsocks"
@@ -25,19 +25,19 @@ echo "--------------------------------------------------"
 # --- Check Domain ---
 DOMAIN=$(ls -1 /var/lib/marzban/certs/ 2>/dev/null | head -n 1)
 if [ -z "$DOMAIN" ]; then
-    echo -e "\e[1;31m❌ Error: Domain folder ရှာမတွေ့ပါ။ 1011 Script နဲ့ အရင် SSL setup လုပ်ထားဖို့ လိုပါတယ်။\e[0m"
+    echo -e "\e[1;31m❌ Error: Domain folder not found. Run 1011 install script first.\e[0m"
     exit 1
 else
     echo -e "\e[1;32m✅ Domain found: $DOMAIN\e[0m"
 fi
 
-echo "🔑 Keys ထုတ်နေပါတယ်..."
+echo "🔑 Generating Keys..."
 
 # --- Get Reality Keys ---
 KEYS=$(docker exec marzban-marzban-1 xray x25519 2>/dev/null || docker exec marzban-1 xray x25519 2>/dev/null)
 
 if [ -z "$KEYS" ]; then
-    echo "🌐 Docker ထဲမှာ xray မရှိလို့ အပြင်ကနေ Download ဆွဲနေပါတယ်..."
+    echo "🌐 Downloading xray core directly..."
     apt update && apt install unzip -y &>/dev/null
     curl -L -o /tmp/xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip &>/dev/null
     unzip -o /tmp/xray.zip xray -d /tmp/ &>/dev/null
@@ -50,7 +50,7 @@ PUB=$(echo "$KEYS" | grep "Public key" | cut -d ' ' -f 3)
 SID=$(openssl rand -hex 4)
 
 if [ -z "$PRIV" ]; then
-    echo -e "\e[1;31m❌ Error: Reality Keys ထုတ်လို့ မရခဲ့ပါ။\e[0m"
+    echo -e "\e[1;31m❌ Error: Failed to generate Reality Keys.\e[0m"
     exit 1
 fi
 
@@ -97,7 +97,7 @@ cat <<EOF > /var/lib/marzban/xray_config.json
                     "shortIds": ["$SID"]
                 }
             },
-            "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"] }
+            "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
         },
         {
             "tag": "VMess WS TLS",
@@ -183,42 +183,6 @@ cat <<EOF > /var/lib/marzban/xray_config.json
                 },
                 "grpcSettings": { "serviceName": "vless-grpc" }
             }
-        },
-        {
-            "tag": "VLESS HTTP/2",
-            "listen": "0.0.0.0",
-            "port": 2096,
-            "protocol": "vless",
-            "settings": { "clients": [], "decryption": "none" },
-            "streamSettings": {
-                "network": "h2",
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [{
-                        "certificateFile": "/var/lib/marzban/certs/$DOMAIN/fullchain.pem",
-                        "keyFile": "/var/lib/marzban/certs/$DOMAIN/privkey.pem"
-                    }]
-                },
-                "httpSettings": { "path": "/vless-h2", "host": ["$DOMAIN"] }
-            }
-        },
-        {
-            "tag": "VLESS QUIC",
-            "listen": "0.0.0.0",
-            "port": 4433,
-            "protocol": "vless",
-            "settings": { "clients": [], "decryption": "none" },
-            "streamSettings": {
-                "network": "quic",
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [{
-                        "certificateFile": "/var/lib/marzban/certs/$DOMAIN/fullchain.pem",
-                        "keyFile": "/var/lib/marzban/certs/$DOMAIN/privkey.pem"
-                    }]
-                },
-                "quicSettings": { "security": "none", "header": { "type": "none" } }
-            }
         }
     ],
     "outbounds": [
@@ -228,12 +192,12 @@ cat <<EOF > /var/lib/marzban/xray_config.json
 }
 EOF
 
-echo "✅ JSON File Updated with Advanced Protocols (gRPC, H2, QUIC)."
+echo "✅ JSON File Updated with Stable Protocols (Removed deprecated H2/QUIC)."
 marzban restart
 
 # Cleanup
 rm -rf /tmp/xray.zip /tmp/xray 2>/dev/null
 
 echo "--------------------------------------------------"
-echo -e "\e[1;32m🔥 1011 Inbound Setup Complete! 🔥\e[0m"
+echo -e "\e[1;32m🔥 1011 Stable Inbound Setup Complete! 🔥\e[0m"
 echo "--------------------------------------------------"
